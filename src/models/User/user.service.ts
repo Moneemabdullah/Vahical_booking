@@ -1,6 +1,6 @@
-import User from "./user.type";
-import { pool } from "../../config/db";
 import bcrypt from "bcrypt";
+import { pool } from "../../config/db";
+import User from "./user.type";
 
 const createUser = async (user: User) => {
     user.password = await bcrypt.hash(user.password, 10);
@@ -24,6 +24,11 @@ const getUserbyID = async (id: number) => {
 };
 
 const updateUserByID = async (id: number, user: Partial<User>) => {
+    // Hash password if it's being updated
+    if (user.password) {
+        user.password = await bcrypt.hash(user.password, 10);
+    }
+
     const fields = [];
     const values = [];
     let index = 1;

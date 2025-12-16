@@ -8,5 +8,8 @@ app.use(express.json());
 initDb();
 
 app.use("/api", mainRoutes);
+app.get("/", (req, res) => {
+    res.send("Welcome to the API");
+});
 
 export default app;

@@ -1,5 +1,5 @@
-import { loginUser, registerUser } from "./auth.service";
 import { Request, Response } from "express";
+import { loginUser, registerUser } from "./auth.service";
 
 export const AuthController = {
     login: async (req: Request, res: Response) => {
@@ -27,16 +27,32 @@ export const AuthController = {
     },
     register: async (req: Request, res: Response) => {
         try {
+            if (!req.body) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Request body is missing. Send JSON data.",
+                });
+            }
+
             const { name, email, password, role, phone } = req.body;
+
+            if (!name || !email || !password || !role || !phone) {
+                return res.status(400).json({
+                    success: false,
+                    message: "All fields are required",
+                });
+            }
 
             const user = await registerUser(name, email, password, role, phone);
 
-            res.status(201).json({
+            return res.status(201).json({
+                success: true,
                 message: "User registered successfully",
                 data: user,
             });
         } catch (err: any) {
-            res.status(500).json({
+            console.error(err);
+            return res.status(500).json({
                 success: false,
                 message: err.message,
             });
