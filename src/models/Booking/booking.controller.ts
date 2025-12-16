@@ -6,10 +6,16 @@ export class BookingController {
     static async create(req: Request, res: Response) {
         try {
             const { vehicle_id, rent_start_date, rent_end_date } = req.body;
-            const customerId = req.user.id; // From auth middleware
+            if (!req.user) {
+                return res.status(401).json({
+                    success: false,
+                    message: "User not authenticated",
+                });
+            }
+            const customerId = req.user.id as any; // From auth middleware
 
             const booking = await BookingService.createBooking(
-                customerId,
+                customerId as number,
                 vehicle_id,
                 rent_start_date,
                 rent_end_date
@@ -28,6 +34,12 @@ export class BookingController {
     // GET → All or own bookings
     static async getAll(req: Request, res: Response) {
         try {
+            if (!req.user) {
+                return res.status(401).json({
+                    success: false,
+                    message: "User not authenticated",
+                });
+            }
             const role = req.user.role;
             const userId = req.user.id;
 
@@ -42,6 +54,12 @@ export class BookingController {
     // PUT → Cancel booking
     static async cancel(req: Request, res: Response) {
         try {
+            if (!req.user) {
+                return res.status(401).json({
+                    success: false,
+                    message: "User not authenticated",
+                });
+            }
             const bookingId = Number(req.params.bookingId);
             const userId = req.user.id;
 
