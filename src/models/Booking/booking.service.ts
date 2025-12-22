@@ -1,6 +1,4 @@
-import { Pool, QueryResult } from "pg";
-
-const pool = new Pool();
+import { pool } from "../../config/db";
 
 export class BookingService {
     // Create Booking

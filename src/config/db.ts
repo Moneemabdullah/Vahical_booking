@@ -1,11 +1,32 @@
-import config from ".";
 import { Pool } from "pg";
+import config from ".";
 
 export const pool = new Pool({
     connectionString: config.dbUri,
+    ssl: false,
 });
 
+const waitForDb = async (retries = 20, delayMs = 3000) => {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+        try {
+            await pool.query("SELECT 1");
+            return;
+        } catch (err) {
+            const msg = (err as Error)?.message || String(err);
+            console.log(
+                `DB not ready (attempt ${attempt}/${retries}): ${msg}. Retrying in ${Math.floor(
+                    delayMs / 1000
+                )}s...`
+            );
+            await new Promise((res) => setTimeout(res, delayMs));
+        }
+    }
+    throw new Error("Database connection failed after multiple attempts");
+};
+
 const initDb = async () => {
+    // Wait for the database to be ready (important in Docker startup)
+    await waitForDb();
     // CREATE USER TABLE
     await pool.query(`
         CREATE TABLE IF NOT EXISTS "user"(

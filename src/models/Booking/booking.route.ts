@@ -5,19 +5,12 @@ import auth from "../../middlewares/auth";
 const router = Router();
 
 // Create booking
-router.post("/", auth("user"), BookingController.create);
+router.post("/bookings", auth("user"), BookingController.create);
 
 // Get all or own bookings
-router.get("/", auth("user"), BookingController.getAll);
+router.get("/bookings", auth("user"), BookingController.getAll);
 
 // Cancel booking (customer)
-router.put("/:bookingId/cancel", auth("user"), BookingController.cancel);
-
-// Mark returned (admin)
-router.put(
-    "/:bookingId/return",
-    auth("admin"),
-    BookingController.returnVehicle
-);
+router.put("/bookings/:bookingId", auth("user"), BookingController.cancel);
 
 export const BookingRoutes = router;
