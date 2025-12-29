@@ -11,73 +11,97 @@ const waitForDb = async (retries = 20, delayMs = 3000) => {
         try {
             await pool.query("SELECT 1");
             return;
-        } catch (err) {
-            const msg = (err as Error)?.message || String(err);
+        } catch {
             console.log(
-                `DB not ready (attempt ${attempt}/${retries}): ${msg}. Retrying in ${Math.floor(
-                    delayMs / 1000
-                )}s...`
+                `DB not ready (attempt ${attempt}/${retries}). Retrying...`
             );
             await new Promise((res) => setTimeout(res, delayMs));
         }
     }
-    throw new Error("Database connection failed after multiple attempts");
+    throw new Error("Database connection failed");
 };
 
 const initDb = async () => {
-    // Wait for the database to be ready (important in Docker startup)
     await waitForDb();
-    // CREATE USER TABLE
-    await pool.query(`
-        CREATE TABLE IF NOT EXISTS "user"(
-            id SERIAL PRIMARY KEY,
-            name VARCHAR(100) NOT NULL,
-            email VARCHAR(100) UNIQUE NOT NULL,
-            password VARCHAR(100) NOT NULL,
-            phone VARCHAR(15) NOT NULL,
-            role VARCHAR(10) DEFAULT 'user',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-    `);
 
-    // ENUM TYPE
+    /* ======================
+      USERS
+  ====================== */
     await pool.query(`
-        DO $$ BEGIN
-            CREATE TYPE vehicle_type AS ENUM ('car', 'bike', 'van', 'SUV');
-        EXCEPTION
-            WHEN duplicate_object THEN null;
-        END $$;
-    `);
+    CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(100) NOT NULL,
+      email VARCHAR(100) UNIQUE NOT NULL,
+      password VARCHAR(255) NOT NULL CHECK (length(password) >= 6),
+      phone VARCHAR(20) NOT NULL,
+      role VARCHAR(10) NOT NULL CHECK (role IN ('admin', 'customer')),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
 
-    // VEHICLE TABLE
+    /* ======================
+      ENUM TYPES (SAFE)
+  ====================== */
     await pool.query(`
-        CREATE TABLE IF NOT EXISTS vehicle(
-            id SERIAL PRIMARY KEY,
-            vehicle_name VARCHAR(100) NOT NULL,
-            type vehicle_type NOT NULL,
-            model VARCHAR(50) NOT NULL,
-            registration_number VARCHAR(50) UNIQUE NOT NULL,
-            daily_rent_price NUMERIC CHECK (daily_rent_price > 0) NOT NULL,
-            availability_status BOOLEAN DEFAULT true NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-    `);
+    DO $$ BEGIN
+      CREATE TYPE vehicle_type AS ENUM ('car', 'bike', 'van', 'SUV');
+    EXCEPTION
+      WHEN duplicate_object THEN null;
+    END $$;
+  `);
 
-    // BOOKING TABLE
     await pool.query(`
-        CREATE TABLE IF NOT EXISTS booking(
-            id SERIAL PRIMARY KEY,
-            customer_id INTEGER REFERENCES "user"(id),
-            vehicle_id INTEGER REFERENCES vehicle(id),
-            rent_start_date DATE NOT NULL,
-            rent_end_date DATE NOT NULL,
-            total_rent_price NUMERIC CHECK (total_rent_price > 0) NOT NULL,
-            status VARCHAR(20) DEFAULT 'booked' NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-    `);
+    DO $$ BEGIN
+      CREATE TYPE availability_status_enum AS ENUM ('available', 'booked');
+    EXCEPTION
+      WHEN duplicate_object THEN null;
+    END $$;
+  `);
 
-    console.log("Database initialized");
+    await pool.query(`
+    DO $$ BEGIN
+      CREATE TYPE booking_status_enum AS ENUM ('active', 'cancelled', 'returned');
+    EXCEPTION
+      WHEN duplicate_object THEN null;
+    END $$;
+  `);
+
+    /* ======================
+      VEHICLES
+  ====================== */
+    await pool.query(`
+    CREATE TABLE IF NOT EXISTS vehicles (
+      id SERIAL PRIMARY KEY,
+      vehicle_name VARCHAR(100) NOT NULL,
+      type vehicle_type NOT NULL,
+      registration_number VARCHAR(50) UNIQUE NOT NULL,
+      daily_rent_price NUMERIC NOT NULL CHECK (daily_rent_price > 0),
+      availability_status availability_status_enum
+        NOT NULL DEFAULT 'available',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+    /* ======================
+      BOOKINGS
+  ====================== */
+    await pool.query(`
+    CREATE TABLE IF NOT EXISTS bookings (
+      id SERIAL PRIMARY KEY,
+      customer_id INTEGER NOT NULL
+        REFERENCES users(id) ON DELETE CASCADE,
+      vehicle_id INTEGER NOT NULL
+        REFERENCES vehicles(id) ON DELETE CASCADE,
+      rent_start_date DATE NOT NULL,
+      rent_end_date DATE NOT NULL,
+      total_price NUMERIC NOT NULL CHECK (total_price > 0),
+      status booking_status_enum NOT NULL DEFAULT 'active',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      CHECK (rent_end_date > rent_start_date)
+    );
+  `);
+
+    console.log("✅ Database initialized successfully");
 };
 
 export default initDb;

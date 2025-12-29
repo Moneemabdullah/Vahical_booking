@@ -10,8 +10,8 @@ export class BookingService {
     ) {
         // 1. Check vehicle availability
         const vehicle = await pool.query(
-            `SELECT * FROM vehicle 
-             WHERE id = $1 AND availability_status = TRUE`,
+            `SELECT * FROM vehicles 
+             WHERE id = $1 AND availability_status = 'available'`,
             [vehicleId]
         );
 
@@ -33,7 +33,7 @@ export class BookingService {
 
         // 2. Create booking
         const booking = await pool.query(
-            `INSERT INTO booking (customer_id, vehicle_id, rent_start_date, rent_end_date, total_rent_price)
+            `INSERT INTO bookings (customer_id, vehicle_id, rent_start_date, rent_end_date, total_price)
              VALUES ($1, $2, $3, $4, $5)
              RETURNING *`,
             [customerId, vehicleId, startDate, endDate, totalPrice]
@@ -41,7 +41,7 @@ export class BookingService {
 
         // 3. Update vehicle status to booked
         await pool.query(
-            `UPDATE vehicle SET availability_status = FALSE WHERE id = $1`,
+            `UPDATE vehicles SET availability_status = 'booked' WHERE id = $1`,
             [vehicleId]
         );
 
@@ -51,12 +51,12 @@ export class BookingService {
     // Get all or customer-specific bookings
     static async getBookings(role: string, userId: number) {
         if (role === "admin") {
-            const result = await pool.query(`SELECT * FROM booking`);
+            const result = await pool.query(`SELECT * FROM bookings`);
             return result.rows;
         }
 
         const result = await pool.query(
-            `SELECT * FROM booking WHERE customer_id = $1`,
+            `SELECT * FROM bookings WHERE customer_id = $1`,
             [userId]
         );
         return result.rows;
@@ -65,7 +65,7 @@ export class BookingService {
     // Cancel Booking (Customer only)
     static async cancelBooking(bookingId: number, userId: number) {
         const booking = await pool.query(
-            `SELECT * FROM booking WHERE id = $1 AND customer_id = $2`,
+            `SELECT * FROM bookings WHERE id = $1 AND customer_id = $2`,
             [bookingId, userId]
         );
 
@@ -80,13 +80,13 @@ export class BookingService {
 
         // Delete or update status
         const result = await pool.query(
-            `UPDATE booking SET status = 'cancelled' WHERE id = $1 RETURNING *`,
+            `UPDATE bookings SET status = 'cancelled' WHERE id = $1 RETURNING *`,
             [bookingId]
         );
 
         // Release vehicle
         await pool.query(
-            `UPDATE vehicle SET availability_status = TRUE 
+            `UPDATE vehicles SET availability_status = 'available' 
              WHERE id = $1`,
             [booking.rows[0].vehicle_id]
         );
@@ -97,7 +97,7 @@ export class BookingService {
     // Admin: Mark vehicle returned
     static async returnVehicle(bookingId: number) {
         const booking = await pool.query(
-            `SELECT * FROM booking WHERE id = $1`,
+            `SELECT * FROM bookings WHERE id = $1`,
             [bookingId]
         );
 
@@ -106,13 +106,13 @@ export class BookingService {
         }
 
         const result = await pool.query(
-            `UPDATE booking SET status = 'returned' WHERE id = $1 RETURNING *`,
+            `UPDATE bookings SET status = 'returned' WHERE id = $1 RETURNING *`,
             [bookingId]
         );
 
         // Update vehicle availability
         await pool.query(
-            `UPDATE vehicle SET availability_status = TRUE 
+            `UPDATE vehicles SET availability_status = 'available' 
              WHERE id = $1`,
             [booking.rows[0].vehicle_id]
         );

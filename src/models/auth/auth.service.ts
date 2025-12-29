@@ -4,7 +4,7 @@ import config from "../../config";
 import { pool } from "../../config/db";
 
 const loginUser = async (email: string, password: string) => {
-    const result = await pool.query(`SELECT * FROM "user" WHERE email=$1`, [
+    const result = await pool.query(`SELECT * FROM users WHERE email=$1`, [
         email,
     ]);
 
@@ -33,7 +33,7 @@ const registerUser = async (
 ) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const emailQuery = await pool.query(`SELECT * FROM "user" WHERE email=$1`, [
+    const emailQuery = await pool.query(`SELECT * FROM users WHERE email=$1`, [
         email,
     ]);
     if (emailQuery.rows.length > 0) {
@@ -41,7 +41,7 @@ const registerUser = async (
     }
 
     const result = await pool.query(
-        `INSERT INTO "user" (name, email, password, phone, role)
+        `INSERT INTO users (name, email, password, phone, role)
          VALUES ($1, $2, $3, $4, $5)
          RETURNING *`,
         [name, email, hashedPassword, phone, role]

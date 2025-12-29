@@ -1,5 +1,5 @@
-import { userService } from "./user.service";
 import { Request, Response } from "express";
+import { userService } from "./user.service";
 
 export const getUsers = async (req: Request, res: Response) => {
     try {
@@ -22,7 +22,7 @@ export const getUsers = async (req: Request, res: Response) => {
 export const getUserByID = async (req: Request, res: Response) => {
     try {
         const id = parseInt(req.params.id as string);
-        const user = await userService.getUserbyID(id);
+        const user = await userService.getUserByID(id);
         res.status(200).json({
             sucess: true,
             message: "User retrieved successfully",
@@ -60,7 +60,7 @@ export const updateUserByID = async (req: Request, res: Response) => {
 export const deleteUserByID = async (req: Request, res: Response) => {
     try {
         const id = parseInt(req.params.id as string);
-        const user = await userService.deletUserByID(id);
+        const user = await userService.deleteUserByID(id);
         res.status(200).json({
             sucess: true,
             message: "User deleted successfully",
